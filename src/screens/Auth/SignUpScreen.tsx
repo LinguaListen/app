@@ -1,0 +1,129 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { AuthNavigationProp } from '../../types/navigation';
+import { useTheme } from '../../context/ThemeContext';
+import { getTheme } from '../../constants/theme';
+import StyledTextInput from '../../components/common/StyledTextInput';
+import StyledButton from '../../components/common/StyledButton';
+import { useAuth } from '../../context/AuthContext';
+
+const SignUpScreen = () => {
+    const navigation = useNavigation<AuthNavigationProp>();
+    const { login } = useAuth();
+    const { isDark } = useTheme();
+    const theme = getTheme(isDark);
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+    const handleSignUp = () => {
+        setIsLoading(true);
+        setTimeout(() => {
+            login();
+        }, 1500);
+    };
+
+    return (
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scrollViewContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    bounces={false}
+                >
+                    <View style={styles.header}>
+                        <Text style={[styles.title, { color: theme.COLORS.textPrimary }]}>Create Account</Text>
+                        <Text style={[styles.subtitle, { color: theme.COLORS.textSecondary }]}>Start your language learning adventure with us.</Text>
+                    </View>
+
+                    <View style={styles.form}>
+                        <StyledTextInput
+                            placeholder="Full Name"
+                            value={name}
+                            onChangeText={setName}
+                            autoCapitalize="words"
+                        />
+                        <View style={{ height: 16 }} />
+                        <StyledTextInput
+                            placeholder="Email"
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                        />
+                        <View style={{ height: 16 }} />
+                        <StyledTextInput
+                            placeholder="Password"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry={!isPasswordVisible}
+                            rightIcon={isPasswordVisible ? 'eye' : 'eye-off'}
+                            onRightIconPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                        />
+                    </View>
+
+                    <View style={styles.footer}>
+                        <StyledButton title="Sign Up" onPress={handleSignUp} loading={isLoading} />
+                        <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={isLoading}>
+                            <Text style={[styles.signInText, { color: theme.COLORS.textSecondary }]}>
+                                Already have an account? <Text style={[styles.signInLink, { color: theme.COLORS.primary }]}>Log In</Text>
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    scrollViewContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+    },
+    header: {
+        alignItems: 'center',
+        marginBottom: 48,
+    },
+    title: {
+        fontSize: 30,
+        fontFamily: 'Nunito-Bold',
+        lineHeight: 36,
+        marginBottom: 8,
+    },
+    subtitle: {
+        fontSize: 14,
+        fontFamily: 'Inter-Regular',
+        lineHeight: 20,
+        textAlign: 'center',
+    },
+    form: {
+        marginBottom: 32,
+    },
+    footer: {
+        alignItems: 'center',
+    },
+    signInText: {
+        fontSize: 13,
+        fontFamily: 'Inter-Regular',
+        lineHeight: 18,
+        marginTop: 24,
+    },
+    signInLink: {
+        fontFamily: 'Inter-Medium',
+    },
+});
+
+export default SignUpScreen;
