@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Button } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { HomeScreenNavigationProp, AppTabParamList } from '../../types/navigation';
 import { useTheme } from '../../context/ThemeContext';
@@ -32,15 +32,22 @@ const HomeScreen = () => {
     const theme = getTheme(isDark);
     const [code, setCode] = useState('');
     const [isScanning, setIsScanning] = useState(false);
-    const { activities: recentActivity, refresh: refreshRecent } = useRecentActivity();
+    const { activities: recentActivity, refresh: refreshRecent, removeItem } = useRecentActivity();
     const [permission, requestPermission] = useCameraPermissions();
 
+    // Refresh when route param provides new scan
     useEffect(() => {
         if (route.params?.scannedData) {
             setCode(route.params.scannedData);
-            refreshRecent();
         }
     }, [route.params?.scannedData]);
+
+    // Refresh list every time Home screen gains focus
+    useFocusEffect(
+        React.useCallback(() => {
+            refreshRecent();
+        }, [refreshRecent])
+    );
 
     const handleCodeSubmit = () => {
         if (code) {
@@ -128,11 +135,18 @@ const HomeScreen = () => {
                         recentActivity.map((item: RecentActivityItem) => {
                             const cardItem = {
                                 id: item.id,
+                                code: item.code,
                                 phrase: item.phrase,
                                 translation: item.translation,
                                 timestamp: timeAgo(item.timestamp),
                             };
-                            return <RecentActivityCard key={item.id} item={cardItem} />;
+                            return (
+                                <RecentActivityCard
+                                    key={item.id}
+                                    item={cardItem}
+                                    onDelete={() => removeItem(item.id)}
+                                />
+                            );
                         })
                     ) : (
                         <EmptyState icon="clock" message="Your recent activity will appear here." />
