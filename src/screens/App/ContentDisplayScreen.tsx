@@ -3,11 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'rea
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAudioPlayer, AudioModule } from 'expo-audio';
+import { getCachedAudioUri } from '../../utils/audioCache';
 import { RootStackParamList } from '../../types/navigation';
-import { DUMMY_PHRASES, PhraseData } from '../../constants/dummyData';
+import { getByCode } from '../../services/contentService';
+import { Phrase } from '../../types/phrase';
 import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
 import EmptyState from '../../components/common/EmptyState';
+import { addRecentActivity } from '../../utils/recentActivity';
 
 type ContentDisplayScreenRouteProp = RouteProp<RootStackParamList, 'ContentDisplay'>;
 
@@ -15,21 +18,40 @@ const ContentDisplayScreen = () => {
     const route = useRoute<ContentDisplayScreenRouteProp>();
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
-    const [phraseData, setPhraseData] = useState<PhraseData | null>(null);
+    const [phraseData, setPhraseData] = useState<Phrase | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isBuffering, setIsBuffering] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [audioUri, setAudioUri] = useState<string | null>(null);
 
-    const player = useAudioPlayer(phraseData?.audioUrl ? { uri: phraseData.audioUrl } : null);
+    const player = useAudioPlayer(audioUri ? { uri: audioUri } : null);
 
     useEffect(() => {
-        const { code } = route.params;
-        const data = DUMMY_PHRASES[code.toUpperCase()];
-        if (data) {
-            setPhraseData(data);
-        }
-        setIsLoading(false);
+        (async () => {
+            const { code } = route.params;
+            try {
+                const data = await getByCode(code.trim());
+                setPhraseData(data);
+
+                if (data) {
+                    // Add to recent activity (fire-and-forget)
+                    addRecentActivity(data).catch(() => { });
+                    // Cache Yoruba audio (could also decide via user language)
+                    try {
+                        const localUri = await getCachedAudioUri(data.audio.yoruba);
+                        setAudioUri(localUri);
+                    } catch (err) {
+                        console.warn('Audio caching failed', err);
+                        setAudioUri(data.audio.yoruba); // fallback
+                    }
+                }
+            } catch (err) {
+                console.warn(err);
+            } finally {
+                setIsLoading(false);
+            }
+        })();
     }, [route.params]);
 
     useEffect(() => {
@@ -81,7 +103,7 @@ const ContentDisplayScreen = () => {
         }
     };
 
-    if (isLoading) {
+    if (isLoading || (phraseData && !audioUri)) {
         return (
             <View style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
                 <ActivityIndicator size="large" color={theme.COLORS.primary} />
@@ -100,8 +122,8 @@ const ContentDisplayScreen = () => {
     return (
         <View style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
             <View style={[styles.phraseCard, { backgroundColor: theme.COLORS.lightGray }]}>
-                <Text style={[styles.phraseText, { color: theme.COLORS.textPrimary }]}>{phraseData.phrase}</Text>
-                <Text style={[styles.translationText, { color: theme.COLORS.textSecondary }]}>{phraseData.translation}</Text>
+                <Text style={[styles.phraseText, { color: theme.COLORS.textPrimary }]}>{phraseData.yoruba}</Text>
+                <Text style={[styles.translationText, { color: theme.COLORS.textSecondary }]}>{phraseData.english}</Text>
             </View>
             <View style={styles.playerCard}>
                 <TouchableOpacity onPress={handlePlayPause} disabled={!isLoaded || isBuffering} style={[styles.playButton, { backgroundColor: theme.COLORS.primary }]}>

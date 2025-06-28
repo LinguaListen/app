@@ -10,10 +10,20 @@ import StyledTextInput from '../../components/common/StyledTextInput';
 import StyledButton from '../../components/common/StyledButton';
 import RecentActivityCard from '../../components/app/RecentActivityCard';
 import EmptyState from '../../components/common/EmptyState';
-import CustomSwitch from '../../components/common/CustomSwitch';
-import { DUMMY_RECENT_ACTIVITY } from '../../constants/dummyData';
+import { useRecentActivity, RecentActivityItem } from '../../utils/recentActivity';
 
 type HomeScreenRouteProp = RouteProp<AppTabParamList, 'Home'>;
+
+function timeAgo(timestamp: number): string {
+    const diff = Date.now() - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return days === 1 ? 'Yesterday' : `${days} days ago`;
+}
 
 const HomeScreen = () => {
     const navigation = useNavigation<HomeScreenNavigationProp>();
@@ -21,13 +31,14 @@ const HomeScreen = () => {
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
     const [code, setCode] = useState('');
-    const [showDummyData, setShowDummyData] = useState(true);
     const [isScanning, setIsScanning] = useState(false);
+    const { activities: recentActivity, refresh: refreshRecent } = useRecentActivity();
     const [permission, requestPermission] = useCameraPermissions();
 
     useEffect(() => {
         if (route.params?.scannedData) {
             setCode(route.params.scannedData);
+            refreshRecent();
         }
     }, [route.params?.scannedData]);
 
@@ -53,8 +64,6 @@ const HomeScreen = () => {
         setCode(data);
         setIsScanning(false);
     };
-
-    const recentActivity = showDummyData ? DUMMY_RECENT_ACTIVITY : [];
 
     if (isScanning) {
         return (
@@ -115,8 +124,16 @@ const HomeScreen = () => {
                         /> */}
                     </View>
 
-                    {recentActivity.length > 0 ? (
-                        recentActivity.map(item => <RecentActivityCard key={item.id} item={item} />)
+                    {recentActivity && recentActivity.length > 0 ? (
+                        recentActivity.map((item: RecentActivityItem) => {
+                            const cardItem = {
+                                id: item.id,
+                                phrase: item.phrase,
+                                translation: item.translation,
+                                timestamp: timeAgo(item.timestamp),
+                            };
+                            return <RecentActivityCard key={item.id} item={cardItem} />;
+                        })
                     ) : (
                         <EmptyState icon="clock" message="Your recent activity will appear here." />
                     )}

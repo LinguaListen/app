@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { HomeScreenNavigationProp } from '../../types/navigation';
@@ -7,49 +7,60 @@ import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
 import StyledTextInput from '../../components/common/StyledTextInput';
 import EmptyState from '../../components/common/EmptyState';
-import { DUMMY_PHRASES, PhraseData } from '../../constants/dummyData';
+import { useContent } from '../../services/contentService';
+import { Phrase } from '../../types/phrase';
+import { CATEGORIES, CategoryId } from '../../constants/categories';
+import { useToast } from '../../context/ToastContext';
 
 const BrowseScreen = () => {
     const navigation = useNavigation<HomeScreenNavigationProp>();
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedFilter, setSelectedFilter] = useState<'all' | 'recent' | 'favorites'>('all');
+    const [selectedFilter, setSelectedFilter] = useState<'all' | CategoryId>('all');
 
-    // Convert DUMMY_PHRASES object to array for easier manipulation
-    const allPhrases = useMemo(() => Object.values(DUMMY_PHRASES), []);
+    const { phrases: allPhrases, loading, error, refresh } = useContent();
+    const [refreshing, setRefreshing] = useState(false);
+    const { showToast } = useToast();
+
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await refresh();
+        } catch (err) {
+            showToast('Failed to refresh. Check your connection.', { type: 'error' });
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     // Filter phrases based on search query and selected filter
     const filteredPhrases = useMemo(() => {
-        let phrases = allPhrases;
+        if (!allPhrases) return [];
+
+        let phrases: Phrase[] = allPhrases;
 
         // Apply search filter
         if (searchQuery.trim()) {
             phrases = phrases.filter(phrase =>
-                phrase.phrase.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                phrase.translation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                phrase.yoruba.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                phrase.english.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 phrase.code.toLowerCase().includes(searchQuery.toLowerCase())
             );
         }
 
         // Apply category filter (for now, just return all as we don't have categories in dummy data)
-        switch (selectedFilter) {
-            case 'recent':
-                // In a real app, this would filter by recently accessed phrases
-                return phrases.slice(0, Math.ceil(phrases.length / 2));
-            case 'favorites':
-                // In a real app, this would filter by favorited phrases
-                return phrases.slice(Math.floor(phrases.length / 2));
-            default:
-                return phrases;
+        if (selectedFilter !== 'all') {
+            phrases = phrases.filter((p) => p.category === selectedFilter);
         }
+        return phrases;
     }, [allPhrases, searchQuery, selectedFilter]);
 
     const handlePhrasePress = (code: string) => {
         navigation.navigate('ContentDisplay', { code });
     };
 
-    const renderPhraseCard = ({ item }: { item: PhraseData }) => (
+    const renderPhraseCard = ({ item }: { item: Phrase }) => (
         <TouchableOpacity
             style={[styles.phraseCard, {
                 backgroundColor: theme.COLORS.lightGray,
@@ -63,7 +74,7 @@ const BrowseScreen = () => {
                 <Feather name="play-circle" size={20} color={theme.COLORS.primary} />
             </View>
             <Text style={[styles.phraseText, { color: theme.COLORS.textPrimary }]} numberOfLines={3}>
-                {item.phrase}
+                {item.yoruba}
             </Text>
             <View style={styles.cardFooter}>
                 <Text style={[styles.tapToPlayText, { color: theme.COLORS.textSecondary }]}>Tap to play</Text>
@@ -77,7 +88,7 @@ const BrowseScreen = () => {
         isSelected
     }: {
         label: string;
-        value: 'all' | 'recent' | 'favorites';
+        value: 'all' | CategoryId;
         isSelected: boolean;
     }) => (
         <TouchableOpacity
@@ -99,6 +110,28 @@ const BrowseScreen = () => {
             </Text>
         </TouchableOpacity>
     );
+
+    useEffect(() => {
+        if (error) {
+            showToast('Network error loading phrases', { type: 'error' });
+        }
+    }, [error]);
+
+    if (loading || !allPhrases) {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background, justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={theme.COLORS.primary} />
+            </SafeAreaView>
+        );
+    }
+
+    if (error) {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background, justifyContent: 'center', alignItems: 'center' }]}>
+                <EmptyState icon="alert-circle" message={error.message} />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
@@ -128,8 +161,14 @@ const BrowseScreen = () => {
                     contentContainerStyle={styles.filterScrollContent}
                 >
                     <FilterChip label="All" value="all" isSelected={selectedFilter === 'all'} />
-                    <FilterChip label="Recent" value="recent" isSelected={selectedFilter === 'recent'} />
-                    <FilterChip label="Favorites" value="favorites" isSelected={selectedFilter === 'favorites'} />
+                    {CATEGORIES.map((cat) => (
+                        <FilterChip
+                            key={cat.id}
+                            label={cat.label}
+                            value={cat.id}
+                            isSelected={selectedFilter === cat.id}
+                        />
+                    ))}
                 </ScrollView>
             </View>
 
@@ -148,6 +187,8 @@ const BrowseScreen = () => {
                         columnWrapperStyle={styles.row}
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={styles.listContent}
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
                     />
                 ) : (
                     <EmptyState

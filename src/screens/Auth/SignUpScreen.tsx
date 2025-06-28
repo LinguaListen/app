@@ -7,10 +7,12 @@ import { getTheme } from '../../constants/theme';
 import StyledTextInput from '../../components/common/StyledTextInput';
 import StyledButton from '../../components/common/StyledButton';
 import { useAuth } from '../../context/AuthContext';
+import { useOnboarding } from '../../context/OnboardingContext';
 
 const SignUpScreen = () => {
     const navigation = useNavigation<AuthNavigationProp>();
     const { login } = useAuth();
+    const { resetOnboarding } = useOnboarding();
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
     const [name, setName] = useState('');
@@ -21,7 +23,8 @@ const SignUpScreen = () => {
 
     const handleSignUp = () => {
         setIsLoading(true);
-        setTimeout(() => {
+        setTimeout(async () => {
+            await resetOnboarding();
             login();
         }, 1500);
     };

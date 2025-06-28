@@ -3,10 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
-import { RecentActivity } from '../../constants/dummyData';
 
 interface RecentActivityCardProps {
-    item: RecentActivity;
+    item: {
+        id: string;
+        phrase: string;
+        translation: string;
+        timestamp: string;
+    };
 }
 
 const RecentActivityCard = ({ item }: RecentActivityCardProps) => {
