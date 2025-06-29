@@ -77,7 +77,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         {
                             backgroundColor,
                             opacity,
-                            bottom: 40,
+                            top: 60,
                         },
                     ]}
                 >

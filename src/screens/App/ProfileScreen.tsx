@@ -1,39 +1,35 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, TextInput, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { getTheme, theme } from '../../constants/theme';
+import { useToast } from '../../context/ToastContext';
+import { getTheme } from '../../constants/theme';
 import CustomSwitch from '../../components/common/CustomSwitch';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types/navigation';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { updateProfile } from 'firebase/auth';
+import StyledButton from '../../components/common/StyledButton';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const ProfileScreen = () => {
     const navigation = useNavigation<ProfileScreenNavigationProp>();
-    const { logout } = useAuth();
+    const { logout, profile, user } = useAuth();
     const { isDark, toggleTheme } = useTheme();
+    const { showToast } = useToast();
     const theme = getTheme(isDark);
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const [soundEnabled, setSoundEnabled] = useState(true);
 
-    // Mock user data - in a real app, this would come from context/API
-    const userData = {
-        name: 'Adeola',
-        email: 'adeolaibi@example.com',
-        joinDate: 'January 2024',
-        avatar: 'A', // First letter for avatar
-    };
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [newName, setNewName] = useState(profile?.name || '');
+    const [isUpdating, setIsUpdating] = useState(false);
 
-    // Mock learning statistics
-    const learningStats = {
-        totalPhrases: 47,
-        completedLessons: 12,
-        currentStreak: 5,
-        totalStudyTime: '2h 34m',
-    };
+    const userName = profile?.name || 'User';
+    const userEmail = profile?.email || '';
+    const avatarLetter = userName.charAt(0).toUpperCase();
 
     const handleLogout = () => {
         Alert.alert(
@@ -58,20 +54,41 @@ const ProfileScreen = () => {
         navigation.navigate('PrivacyPolicy');
     };
 
-    const StatCard = ({ icon, title, value, color = theme.COLORS.primary }: {
-        icon: keyof typeof Feather.glyphMap;
-        title: string;
-        value: string;
-        color?: string;
-    }) => (
-        <View style={[styles.statCard, { backgroundColor: theme.COLORS.lightGray, borderColor: theme.COLORS.border }]}>
-            <View style={[styles.statIcon, { backgroundColor: `${color}20` }]}>
-                <Feather name={icon} size={20} color={color} />
-            </View>
-            <Text style={[styles.statValue, { color: theme.COLORS.textPrimary }]}>{value}</Text>
-            <Text style={[styles.statTitle, { color: theme.COLORS.textSecondary }]}>{title}</Text>
-        </View>
-    );
+    const handleStartEditing = () => {
+        setNewName(profile?.name || '');
+        setIsEditingName(true);
+    };
+
+    const handleCancelEditing = () => {
+        setNewName(profile?.name || '');
+        setIsEditingName(false);
+        Keyboard.dismiss();
+    };
+
+    const handleUpdateName = async () => {
+        if (!newName.trim() || !user) return;
+
+        // Dismiss keyboard before processing
+        Keyboard.dismiss();
+
+        setIsUpdating(true);
+        try {
+            // Update Firestore profile first (this is what the UI shows)
+            await updateDoc(doc(db, 'users', user.uid), {
+                name: newName.trim()
+            });
+
+            // Update Firebase Auth profile in background (no await)
+            updateProfile(user, { displayName: newName.trim() }).catch(console.error);
+
+            setIsEditingName(false);
+            showToast('Your name has been updated successfully.', { type: 'success' });
+        } catch (error) {
+            showToast('Failed to update your name. Please try again.', { type: 'error' });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     const SettingItem = ({
         icon,
@@ -79,7 +96,8 @@ const ProfileScreen = () => {
         subtitle,
         onPress,
         showArrow = true,
-        rightComponent
+        rightComponent,
+        isLast = false
     }: {
         icon: keyof typeof Feather.glyphMap;
         title: string;
@@ -87,11 +105,17 @@ const ProfileScreen = () => {
         onPress?: () => void;
         showArrow?: boolean;
         rightComponent?: React.ReactNode;
+        isLast?: boolean;
     }) => {
-        // If there's a rightComponent (like a Switch), don't make the whole item touchable
+        const itemStyle = [
+            styles.settingItem,
+            { borderBottomColor: theme.COLORS.border },
+            isLast && { borderBottomWidth: 0 }
+        ];
+
         if (rightComponent) {
             return (
-                <View style={[styles.settingItem, { borderBottomColor: theme.COLORS.border }]}>
+                <View style={itemStyle}>
                     <View style={styles.settingLeft}>
                         <View style={[styles.settingIcon, { backgroundColor: theme.COLORS.background }]}>
                             <Feather name={icon} size={20} color={theme.COLORS.textSecondary} />
@@ -108,9 +132,8 @@ const ProfileScreen = () => {
             );
         }
 
-        // For regular clickable items without rightComponent
         return (
-            <TouchableOpacity style={[styles.settingItem, { borderBottomColor: theme.COLORS.border }]} onPress={onPress} disabled={!onPress}>
+            <TouchableOpacity style={itemStyle} onPress={onPress} disabled={!onPress}>
                 <View style={styles.settingLeft}>
                     <View style={[styles.settingIcon, { backgroundColor: theme.COLORS.background }]}>
                         <Feather name={icon} size={20} color={theme.COLORS.textSecondary} />
@@ -135,82 +158,70 @@ const ProfileScreen = () => {
                 {/* Profile Header */}
                 <View style={[styles.profileHeader, { backgroundColor: theme.COLORS.background }]}>
                     <View style={[styles.avatarContainer, { backgroundColor: theme.COLORS.primary }]}>
-                        <Text style={[styles.avatarText, { color: theme.COLORS.background }]}>{userData.avatar}</Text>
+                        <Text style={[styles.avatarText, { color: theme.COLORS.background }]}>{avatarLetter}</Text>
                     </View>
                     <View style={styles.profileInfo}>
-                        <Text style={[styles.userName, { color: theme.COLORS.textPrimary }]}>{userData.name}</Text>
-                        <Text style={[styles.userEmail, { color: theme.COLORS.textSecondary }]}>{userData.email}</Text>
-                        <Text style={[styles.joinDate, { color: theme.COLORS.textSecondary }]}>Member since {userData.joinDate}</Text>
+                        {isEditingName ? (
+                            <View style={styles.editingContainer}>
+                                <TextInput
+                                    style={[styles.nameInput, {
+                                        color: theme.COLORS.textPrimary,
+                                        borderColor: theme.COLORS.border,
+                                        backgroundColor: theme.COLORS.lightGray
+                                    }]}
+                                    value={newName}
+                                    onChangeText={setNewName}
+                                    placeholder="Enter your full name"
+                                    placeholderTextColor={theme.COLORS.textSecondary}
+                                    autoFocus
+                                    returnKeyType="done"
+                                    onSubmitEditing={handleUpdateName}
+                                />
+                                <View style={styles.editingButtons}>
+                                    <TouchableOpacity
+                                        style={[styles.editActionButton, styles.cancelEditButton, { borderColor: theme.COLORS.border }]}
+                                        onPress={handleCancelEditing}
+                                        disabled={isUpdating}
+                                    >
+                                        <Feather name="x" size={16} color={theme.COLORS.textSecondary} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.editActionButton, styles.saveEditButton, { backgroundColor: theme.COLORS.primary }]}
+                                        onPress={handleUpdateName}
+                                        disabled={!newName.trim() || newName.trim() === profile?.name || isUpdating}
+                                    >
+                                        {isUpdating ? (
+                                            <Feather name="loader" size={16} color="#fff" />
+                                        ) : (
+                                            <Feather name="check" size={16} color="#fff" />
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ) : (
+                            <>
+                                <Text style={[styles.userName, { color: theme.COLORS.textPrimary }]}>{userName}</Text>
+                                {userEmail ? <Text style={[styles.userEmail, { color: theme.COLORS.textSecondary }]}>{userEmail}</Text> : null}
+                            </>
+                        )}
                     </View>
-                    <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-                        <Feather name="edit-2" size={18} color={theme.COLORS.primary} />
-                    </TouchableOpacity>
+                    {!isEditingName && (
+                        <TouchableOpacity style={styles.editButton} onPress={handleStartEditing}>
+                            <Feather name="edit-2" size={18} color={theme.COLORS.primary} />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
-                {/* Learning Statistics */}
-                <View style={styles.statsSection}>
-                    <Text style={[styles.sectionTitle, { color: theme.COLORS.textPrimary }]}>Learning Progress</Text>
-                    <View style={styles.statsGrid}>
-                        <StatCard
-                            icon="book-open"
-                            title="Phrases Learned"
-                            value={learningStats.totalPhrases.toString()}
-                            color={theme.COLORS.primary}
-                        />
-                        <StatCard
-                            icon="award"
-                            title="Lessons Completed"
-                            value={learningStats.completedLessons.toString()}
-                            color="#78B242"
-                        />
-                        <StatCard
-                            icon="zap"
-                            title="Current Streak"
-                            value={`${learningStats.currentStreak} days`}
-                            color="#F97316"
-                        />
-                        <StatCard
-                            icon="clock"
-                            title="Study Time"
-                            value={learningStats.totalStudyTime}
-                            color="#EF4444"
-                        />
-                    </View>
-                </View>
-
-                {/* Settings Section */}
+                {/* Appearance Settings */}
                 <View style={styles.settingsSection}>
-                    <Text style={[styles.sectionTitle, { color: theme.COLORS.textPrimary }]}>Settings</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.COLORS.textPrimary }]}>Appearance</Text>
                     <View style={[styles.settingsCard, { backgroundColor: theme.COLORS.lightGray, borderColor: theme.COLORS.border }]}>
-                        <SettingItem
-                            icon="bell"
-                            title="Notifications"
-                            subtitle="Get reminders to practice"
-                            showArrow={false}
-                            rightComponent={
-                                <CustomSwitch
-                                    value={notificationsEnabled}
-                                    onValueChange={setNotificationsEnabled}
-                                />
-                            }
-                        />
-                        <SettingItem
-                            icon="volume-2"
-                            title="Sound Effects"
-                            subtitle="Audio feedback and sounds"
-                            showArrow={false}
-                            rightComponent={
-                                <CustomSwitch
-                                    value={soundEnabled}
-                                    onValueChange={setSoundEnabled}
-                                />
-                            }
-                        />
                         <SettingItem
                             icon="moon"
                             title="Dark Mode"
-                            subtitle="Switch to dark theme"
+                            subtitle="Switch theme"
                             showArrow={false}
+                            isLast={true}
                             rightComponent={
                                 <CustomSwitch
                                     value={isDark}
@@ -242,6 +253,7 @@ const ProfileScreen = () => {
                             title="About"
                             subtitle="App version and info"
                             onPress={() => navigation.navigate('About')}
+                            isLast={true}
                         />
                     </View>
                 </View>
@@ -260,7 +272,6 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.COLORS.background,
     },
     scrollContent: {
         paddingBottom: 40,
@@ -271,13 +282,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 20,
         paddingBottom: 24,
-        backgroundColor: theme.COLORS.background,
     },
     avatarContainer: {
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: theme.COLORS.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
@@ -286,82 +295,24 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontFamily: 'Inter-SemiBold',
         fontWeight: '600',
-        color: theme.COLORS.background,
     },
     profileInfo: {
         flex: 1,
     },
     userName: {
-        ...theme.FONTS.h3,
-        color: theme.COLORS.textPrimary,
+        fontSize: 20,
         fontFamily: 'Nunito-SemiBold',
         fontWeight: '600',
+        lineHeight: 26,
     },
     userEmail: {
-        ...theme.FONTS.body3,
-        color: theme.COLORS.textSecondary,
+        fontSize: 14,
+        fontFamily: 'Inter-Regular',
         marginTop: 2,
-        height: 1.2,
-    },
-    joinDate: {
-        ...theme.FONTS.body4,
-        color: theme.COLORS.textSecondary,
-        marginTop: 4,
-        fontSize: 12,
-        height: 1.2,
+        lineHeight: 18,
     },
     editButton: {
         padding: 8,
-    },
-    statsSection: {
-        paddingHorizontal: 20,
-        marginBottom: 32,
-    },
-    sectionTitle: {
-        ...theme.FONTS.h3,
-        color: theme.COLORS.textPrimary,
-        fontFamily: 'Nunito-SemiBold',
-        fontWeight: '600',
-        fontSize: 18,
-        marginBottom: 16,
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
-    statCard: {
-        backgroundColor: theme.COLORS.lightGray,
-        borderRadius: theme.SIZES.radius,
-        padding: 16,
-        alignItems: 'center',
-        width: '48%',
-        borderWidth: 1,
-        borderColor: theme.COLORS.border,
-    },
-    statIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    statValue: {
-        ...theme.FONTS.h4,
-        color: theme.COLORS.textPrimary,
-        fontFamily: 'Inter-SemiBold',
-        fontWeight: '600',
-        fontSize: 16,
-        marginBottom: 4,
-    },
-    statTitle: {
-        ...theme.FONTS.body4,
-        color: theme.COLORS.textSecondary,
-        textAlign: 'center',
-        fontSize: 12,
-        height: 1.2,
     },
     settingsSection: {
         paddingHorizontal: 20,
@@ -371,11 +322,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         marginBottom: 32,
     },
+    sectionTitle: {
+        fontSize: 18,
+        fontFamily: 'Nunito-SemiBold',
+        fontWeight: '600',
+        marginBottom: 16,
+    },
     settingsCard: {
-        backgroundColor: theme.COLORS.lightGray,
-        borderRadius: theme.SIZES.radius,
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: theme.COLORS.border,
     },
     settingItem: {
         flexDirection: 'row',
@@ -384,7 +339,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: theme.COLORS.border,
     },
     settingLeft: {
         flexDirection: 'row',
@@ -395,7 +349,6 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: theme.COLORS.background,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -404,18 +357,15 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     settingTitle: {
-        ...theme.FONTS.body2,
-        color: theme.COLORS.textPrimary,
+        fontSize: 16,
         fontFamily: 'Inter-Medium',
         fontWeight: '500',
-        fontSize: 16,
     },
     settingSubtitle: {
-        ...theme.FONTS.body4,
-        color: theme.COLORS.textSecondary,
-        marginTop: 2,
         fontSize: 14,
-        height: 1.2,
+        fontFamily: 'Inter-Regular',
+        marginTop: 2,
+        lineHeight: 18,
     },
     settingRight: {
         flexDirection: 'row',
@@ -430,15 +380,48 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: '#EF4444',
         paddingVertical: 16,
-        borderRadius: theme.SIZES.radius,
+        borderRadius: 12,
         alignItems: 'center',
         width: '100%',
     },
     logoutButtonText: {
-        ...theme.FONTS.h4,
+        fontSize: 16,
         color: '#EF4444',
         fontFamily: 'Inter-SemiBold',
         fontWeight: '600',
+    },
+    editingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    editingButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 12,
+    },
+    editActionButton: {
+        width: 36,
+        height: 36,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    cancelEditButton: {
+        borderWidth: 1,
+        marginRight: 8,
+    },
+    saveEditButton: {
+        borderWidth: 0,
+    },
+    nameInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 16,
+        fontFamily: 'Inter-Regular',
+        minHeight: 44,
     },
 });
 

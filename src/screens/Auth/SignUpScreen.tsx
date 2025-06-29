@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthNavigationProp } from '../../types/navigation';
 import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
 import StyledTextInput from '../../components/common/StyledTextInput';
 import StyledButton from '../../components/common/StyledButton';
-import { useAuth } from '../../context/AuthContext';
 import { useOnboarding } from '../../context/OnboardingContext';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { auth, db } from '../../services/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const SignUpScreen = () => {
     const navigation = useNavigation<AuthNavigationProp>();
-    const { login } = useAuth();
     const { resetOnboarding } = useOnboarding();
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
@@ -21,12 +22,29 @@ const SignUpScreen = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-    const handleSignUp = () => {
+    const handleSignUp = async () => {
+        if (!name || !email || !password) {
+            Alert.alert('Missing Fields', 'Please fill in all fields.');
+            return;
+        }
         setIsLoading(true);
-        setTimeout(async () => {
+        try {
+            // Ensure onboarding shows immediately after account creation
             await resetOnboarding();
-            login();
-        }, 1500);
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await updateProfile(userCredential.user, { displayName: name });
+            // Save profile to Firestore
+            await setDoc(doc(db, 'users', userCredential.user.uid), {
+                name,
+                email,
+                createdAt: serverTimestamp(),
+            });
+            // Navigation will be handled by the AuthContext listener
+        } catch (error: any) {
+            Alert.alert('Sign Up Error', error.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

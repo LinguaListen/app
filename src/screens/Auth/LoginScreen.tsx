@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthNavigationProp } from '../../types/navigation';
 import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
 import StyledTextInput from '../../components/common/StyledTextInput';
 import StyledButton from '../../components/common/StyledButton';
-import { useAuth } from '../../context/AuthContext';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../services/firebase';
 
 const LoginScreen = () => {
     const navigation = useNavigation<AuthNavigationProp>();
-    const { login } = useAuth();
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
     const [email, setEmail] = useState('');
@@ -18,12 +18,20 @@ const LoginScreen = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert('Missing Fields', 'Please fill in all fields.');
+            return;
+        }
         setIsLoading(true);
-        setTimeout(() => {
-            login();
-            // No need to set isLoading to false, as the component will unmount
-        }, 1500);
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            // Navigation will be handled by the AuthContext listener
+        } catch (error: any) {
+            Alert.alert('Login Error', error.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

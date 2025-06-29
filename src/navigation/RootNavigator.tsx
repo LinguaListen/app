@@ -7,14 +7,14 @@ import { useAuth } from '../context/AuthContext';
 import { useOnboarding } from '../context/OnboardingContext';
 
 const RootNavigator = () => {
-    const { isAuthenticated } = useAuth();
+    const { user, isLoading } = useAuth();
     const { hasSeenOnboarding } = useOnboarding();
 
-    // While onboarding flag is loading, show nothing to avoid flicker
-    if (hasSeenOnboarding === null) return null;
+    // While auth or onboarding flag is loading, show nothing to avoid flicker
+    if (isLoading || hasSeenOnboarding === null) return null;
 
     let content;
-    if (!isAuthenticated) {
+    if (!user) {
         content = <AuthNavigator />;
     } else if (!hasSeenOnboarding) {
         content = <OnboardingNavigator />;

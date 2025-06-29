@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Button } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { HomeScreenNavigationProp, AppTabParamList } from '../../types/navigation';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,7 +10,9 @@ import StyledTextInput from '../../components/common/StyledTextInput';
 import StyledButton from '../../components/common/StyledButton';
 import RecentActivityCard from '../../components/app/RecentActivityCard';
 import EmptyState from '../../components/common/EmptyState';
-import { useRecentActivity, RecentActivityItem } from '../../utils/recentActivity';
+import { useRecentActivity as useRecentActivityFS, RecentActivityItem } from '../../services/recentActivityService';
+import { useAuth } from '../../context/AuthContext';
+import { RecentActivitySkeletonList } from '../../components/common/RecentActivitySkeleton';
 
 type HomeScreenRouteProp = RouteProp<AppTabParamList, 'Home'>;
 
@@ -32,8 +34,10 @@ const HomeScreen = () => {
     const theme = getTheme(isDark);
     const [code, setCode] = useState('');
     const [isScanning, setIsScanning] = useState(false);
-    const { activities: recentActivity, refresh: refreshRecent, removeItem } = useRecentActivity();
+    const { user, profile } = useAuth();
+    const { activities: recentActivity, removeItem } = useRecentActivityFS(user?.uid);
     const [permission, requestPermission] = useCameraPermissions();
+    const firstName = profile?.name ? profile.name.split(' ')[0] : '';
 
     // Refresh when route param provides new scan
     useEffect(() => {
@@ -41,13 +45,6 @@ const HomeScreen = () => {
             setCode(route.params.scannedData);
         }
     }, [route.params?.scannedData]);
-
-    // Refresh list every time Home screen gains focus
-    useFocusEffect(
-        React.useCallback(() => {
-            refreshRecent();
-        }, [refreshRecent])
-    );
 
     const handleCodeSubmit = () => {
         if (code) {
@@ -97,7 +94,7 @@ const HomeScreen = () => {
                 <View style={styles.header}>
                     <View>
                         <Text style={[styles.welcomeText, { color: theme.COLORS.textSecondary }]}>Hello,</Text>
-                        <Text style={[styles.userName, { color: theme.COLORS.textPrimary }]}>Adeola</Text>
+                        <Text style={[styles.userName, { color: theme.COLORS.textPrimary }]}>{firstName}</Text>
                     </View>
                     <TouchableOpacity style={styles.notificationButton}>
                         <Feather name="bell" size={24} color={theme.COLORS.textPrimary} />
@@ -131,7 +128,9 @@ const HomeScreen = () => {
                         /> */}
                     </View>
 
-                    {recentActivity && recentActivity.length > 0 ? (
+                    {recentActivity === null ? (
+                        <RecentActivitySkeletonList count={3} />
+                    ) : recentActivity.length > 0 ? (
                         recentActivity.map((item: RecentActivityItem) => {
                             const cardItem = {
                                 id: item.id,

@@ -10,7 +10,8 @@ import { Phrase } from '../../types/phrase';
 import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
 import EmptyState from '../../components/common/EmptyState';
-import { addRecentActivity } from '../../utils/recentActivity';
+import { addRecentActivity } from '../../services/recentActivityService';
+import { useAuth } from '../../context/AuthContext';
 
 type ContentDisplayScreenRouteProp = RouteProp<RootStackParamList, 'ContentDisplay'>;
 
@@ -24,6 +25,7 @@ const ContentDisplayScreen = () => {
     const [isBuffering, setIsBuffering] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
     const [audioUri, setAudioUri] = useState<string | null>(null);
+    const { user } = useAuth();
 
     const player = useAudioPlayer(audioUri ? { uri: audioUri } : null);
 
@@ -35,8 +37,6 @@ const ContentDisplayScreen = () => {
                 setPhraseData(data);
 
                 if (data) {
-                    // Add to recent activity (fire-and-forget)
-                    addRecentActivity(data).catch(() => { });
                     // Cache Yoruba audio (could also decide via user language)
                     try {
                         const localUri = await getCachedAudioUri(data.audio.yoruba);
@@ -45,6 +45,10 @@ const ContentDisplayScreen = () => {
                         console.warn('Audio caching failed', err);
                         setAudioUri(data.audio.yoruba); // fallback
                     }
+
+                    if (user?.uid) {
+                        addRecentActivity(user.uid, data).catch(() => { });
+                    }
                 }
             } catch (err) {
                 console.warn(err);
@@ -52,7 +56,7 @@ const ContentDisplayScreen = () => {
                 setIsLoading(false);
             }
         })();
-    }, [route.params]);
+    }, [route.params, user]);
 
     useEffect(() => {
         const setupAudioMode = async () => {
