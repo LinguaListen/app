@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, TextInput, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, TextInput, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { updateProfile } from 'firebase/auth';
 import StyledButton from '../../components/common/StyledButton';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -26,20 +27,19 @@ const ProfileScreen = () => {
     const [isEditingName, setIsEditingName] = useState(false);
     const [newName, setNewName] = useState(profile?.name || '');
     const [isUpdating, setIsUpdating] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     const userName = profile?.name || 'User';
     const userEmail = profile?.email || '';
     const avatarLetter = userName.charAt(0).toUpperCase();
 
     const handleLogout = () => {
-        Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Logout', style: 'destructive', onPress: logout },
-            ]
-        );
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = async () => {
+        setShowLogoutModal(false);
+        await logout();
     };
 
     const handleEditProfile = () => {
@@ -265,6 +265,17 @@ const ProfileScreen = () => {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+            {/* Logout confirmation modal */}
+            <ConfirmModal
+                visible={showLogoutModal}
+                title="Logout"
+                message="Are you sure you want to logout?"
+                confirmLabel="Logout"
+                cancelLabel="Cancel"
+                type="destructive"
+                onConfirm={confirmLogout}
+                onCancel={() => setShowLogoutModal(false)}
+            />
         </SafeAreaView>
     );
 };

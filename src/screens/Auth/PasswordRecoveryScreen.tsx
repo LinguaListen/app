@@ -6,21 +6,42 @@ import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
 import StyledTextInput from '../../components/common/StyledTextInput';
 import StyledButton from '../../components/common/StyledButton';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../../services/firebase';
+import { useToast } from '../../context/ToastContext';
 
 const PasswordRecoveryScreen = () => {
     const navigation = useNavigation<AuthNavigationProp>();
     const { isDark } = useTheme();
+    const { showToast } = useToast();
     const theme = getTheme(isDark);
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSent, setIsSent] = useState(false);
 
-    const handleSendLink = () => {
+    const handleSendLink = async () => {
+        if (!email.trim()) {
+            showToast('Please enter your email address.', { type: 'error' });
+            return;
+        }
+
         setIsLoading(true);
-        setTimeout(() => {
-            setIsLoading(false);
+        try {
+            await sendPasswordResetEmail(auth, email.trim());
             setIsSent(true);
-        }, 1500);
+            showToast('Password reset email sent.', { type: 'success' });
+        } catch (error: any) {
+            // Firebase provides error codes – map to user-friendly message
+            let message = error.message;
+            if (error.code === 'auth/user-not-found') {
+                message = 'No user found with this email.';
+            } else if (error.code === 'auth/invalid-email') {
+                message = 'The email address is not valid.';
+            }
+            showToast(message, { type: 'error' });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

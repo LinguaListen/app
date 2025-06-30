@@ -78,7 +78,7 @@ const AboutScreen = () => {
                     <InfoItem
                         icon="calendar"
                         title="Release Date"
-                        value="January 2024"
+                        value="07/2025"
                     />
 
                     <InfoItem

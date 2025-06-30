@@ -67,13 +67,13 @@ const HelpSupportScreen = () => {
     };
 
     const handlePhoneSupport = () => {
-        const phoneNumber = 'tel:+2348012345678';
+        const phoneNumber = 'tel:+18001234567'; // US toll-free example
 
         Linking.canOpenURL(phoneNumber).then(supported => {
             if (supported) {
                 Linking.openURL(phoneNumber);
             } else {
-                Alert.alert('Phone Not Available', 'Please call us at +234 801 234 5678');
+                Alert.alert('Phone Not Available', 'Please call us at +1 (800) 123-4567');
             }
         });
     };
@@ -147,7 +147,7 @@ const HelpSupportScreen = () => {
                     <ContactOption
                         icon="phone"
                         title="Phone Support"
-                        subtitle="+234 801 234 5678"
+                        subtitle="+1 (800) 123-4567"
                         onPress={handlePhoneSupport}
                     />
                 </View>
@@ -162,23 +162,6 @@ const HelpSupportScreen = () => {
                     {faqData.map(item => (
                         <FAQItem key={item.id} item={item} />
                     ))}
-                </View>
-
-                {/* Additional Resources */}
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: theme.COLORS.textPrimary }]}>Additional Resources</Text>
-
-                    <TouchableOpacity style={[styles.resourceItem, { backgroundColor: theme.COLORS.lightGray, borderColor: theme.COLORS.border }]}>
-                        <Feather name="book" size={20} color={theme.COLORS.primary} />
-                        <Text style={[styles.resourceText, { color: theme.COLORS.textPrimary }]}>User Guide</Text>
-                        <Feather name="external-link" size={16} color={theme.COLORS.textSecondary} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.resourceItem, { backgroundColor: theme.COLORS.lightGray, borderColor: theme.COLORS.border }]}>
-                        <Feather name="video" size={20} color={theme.COLORS.primary} />
-                        <Text style={[styles.resourceText, { color: theme.COLORS.textPrimary }]}>Video Tutorials</Text>
-                        <Feather name="external-link" size={16} color={theme.COLORS.textSecondary} />
-                    </TouchableOpacity>
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -290,22 +273,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontFamily: 'Inter-Regular',
         lineHeight: 20,
-    },
-    resourceItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-        marginBottom: 12,
-    },
-    resourceText: {
-        flex: 1,
-        fontSize: 16,
-        fontFamily: 'Inter-Medium',
-        fontWeight: '500',
-        lineHeight: 22,
-        marginLeft: 12,
     },
 });
 

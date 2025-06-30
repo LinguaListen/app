@@ -17,7 +17,7 @@ const PrivacyPolicyScreen = () => {
         </View>
     );
 
-    const PolicyText = ({ children }: { children: string }) => (
+    const PolicyText = ({ children }: { children: React.ReactNode }) => (
         <Text style={[styles.policyText, { color: theme.COLORS.textSecondary }]}>{children}</Text>
     );
 
@@ -36,7 +36,7 @@ const PrivacyPolicyScreen = () => {
                 {/* Last Updated */}
                 <View style={styles.lastUpdated}>
                     <Text style={[styles.lastUpdatedText, { color: theme.COLORS.textSecondary }]}>
-                        Last updated: January 15, 2024
+                        Last updated: July 1, 2025
                     </Text>
                 </View>
 
@@ -54,30 +54,34 @@ const PrivacyPolicyScreen = () => {
                     <PolicySection title="Information We Collect">
                         <Text style={[styles.subSectionTitle, { color: theme.COLORS.textPrimary }]}>Personal Information</Text>
                         <PolicyText>
-                            We collect information you provide directly to us, such as:
-                            {'\n'}• Name and email address when you create an account
-                            {'\n'}• Profile information you choose to provide
-                            {'\n'}• Communication preferences and settings
+                            We collect information you provide directly to us when you create or update your account, including:
+                            {'\n'}• Name and email address
+                            {'\n'}• Saved favorites or bookmarked phrases
+                            {'\n'}• Preferences such as theme (dark/light mode)
                         </PolicyText>
 
-                        <Text style={[styles.subSectionTitle, { color: theme.COLORS.textPrimary }]}>Usage Information</Text>
+                        <Text style={[styles.subSectionTitle, { color: theme.COLORS.textPrimary }]}>Content Interaction Data</Text>
                         <PolicyText>
-                            We automatically collect certain information about your use of the app:
-                            {'\n'}• Device information (device type, operating system)
-                            {'\n'}• App usage data (features used, time spent)
-                            {'\n'}• Learning progress and statistics
+                            When you interact with flashcards, scan QR codes, or play audio clips, we collect anonymized metrics such as:
+                            {'\n'}• The code scanned or phrase viewed
+                            {'\n'}• Timestamps of recent activity
+                            {'\n'}• Whether audio was streamed or played from cache (for offline use)
+                        </PolicyText>
+
+                        <Text style={[styles.subSectionTitle, { color: theme.COLORS.textPrimary }]}>Device & Usage Information</Text>
+                        <PolicyText>
+                            We automatically collect limited technical data required to keep the app running smoothly, such as device model, operating system, crash logs, and general usage statistics. This information is aggregated and does not personally identify you.
                         </PolicyText>
                     </PolicySection>
 
                     <PolicySection title="How We Use Your Information">
                         <PolicyText>
                             We use the information we collect to:
-                            {'\n'}• Provide and maintain our services
-                            {'\n'}• Personalize your learning experience
-                            {'\n'}• Track your progress and provide statistics
-                            {'\n'}• Send you important updates and notifications
-                            {'\n'}• Improve our app and develop new features
-                            {'\n'}• Respond to your inquiries and provide support
+                            {'\n'}• Deliver phrase text and audio content that matches the flashcard codes you enter or scan
+                            {'\n'}• Remember your favorites and recent activity across sessions (locally on your device)
+                            {'\n'}• Send password-reset emails and service-related notifications
+                            {'\n'}• Diagnose crashes, improve performance, and add new features
+                            {'\n'}• Provide customer support when you contact us
                         </PolicyText>
                     </PolicySection>
 
@@ -128,7 +132,7 @@ const PrivacyPolicyScreen = () => {
                         <PolicyText>
                             If you have any questions about this Privacy Policy, please contact us at:
                             {'\n'}Email: privacy@lingualisten.com
-                            {'\n'}Phone: +234 801 234 5678
+                            {'\n'}Phone: +1 (800) 123-4567
                         </PolicyText>
                     </PolicySection>
                 </View>

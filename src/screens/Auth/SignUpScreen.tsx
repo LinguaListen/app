@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthNavigationProp } from '../../types/navigation';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,11 +10,13 @@ import { useOnboarding } from '../../context/OnboardingContext';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '../../context/ToastContext';
 
 const SignUpScreen = () => {
     const navigation = useNavigation<AuthNavigationProp>();
     const { resetOnboarding } = useOnboarding();
     const { isDark } = useTheme();
+    const { showToast } = useToast();
     const theme = getTheme(isDark);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -24,7 +26,7 @@ const SignUpScreen = () => {
 
     const handleSignUp = async () => {
         if (!name || !email || !password) {
-            Alert.alert('Missing Fields', 'Please fill in all fields.');
+            showToast('Please fill in all fields.', { type: 'error' });
             return;
         }
         setIsLoading(true);
@@ -41,7 +43,7 @@ const SignUpScreen = () => {
             });
             // Navigation will be handled by the AuthContext listener
         } catch (error: any) {
-            Alert.alert('Sign Up Error', error.message);
+            showToast(error.message, { type: 'error' });
         } finally {
             setIsLoading(false);
         }

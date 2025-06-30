@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthNavigationProp } from '../../types/navigation';
 import { useTheme } from '../../context/ThemeContext';
@@ -8,6 +8,7 @@ import StyledTextInput from '../../components/common/StyledTextInput';
 import StyledButton from '../../components/common/StyledButton';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../services/firebase';
+import { useToast } from '../../context/ToastContext';
 
 const LoginScreen = () => {
     const navigation = useNavigation<AuthNavigationProp>();
@@ -17,10 +18,11 @@ const LoginScreen = () => {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const { showToast } = useToast();
 
     const handleLogin = async () => {
         if (!email || !password) {
-            Alert.alert('Missing Fields', 'Please fill in all fields.');
+            showToast('Please fill in all fields.', { type: 'error' });
             return;
         }
         setIsLoading(true);
@@ -28,7 +30,7 @@ const LoginScreen = () => {
             await signInWithEmailAndPassword(auth, email, password);
             // Navigation will be handled by the AuthContext listener
         } catch (error: any) {
-            Alert.alert('Login Error', error.message);
+            showToast(error.message, { type: 'error' });
         } finally {
             setIsLoading(false);
         }
