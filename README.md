@@ -36,7 +36,7 @@ A React Native mobile application for learning Yoruba through interactive flashc
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/lingualisten.git
+   git clone https://github.com/LinguaListen/lingualisten.git
    cd lingualisten
    ```
 
