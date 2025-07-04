@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { HomeScreenNavigationProp } from '../../types/navigation';
@@ -7,19 +7,47 @@ import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
 import StyledTextInput from '../../components/common/StyledTextInput';
 import EmptyState from '../../components/common/EmptyState';
+import { CategorySkeletonList } from '../../components/common/CategorySkeleton';
 import { useContent } from '../../services/contentService';
 import { Phrase } from '../../types/phrase';
 import { CATEGORIES, CategoryId } from '../../constants/categories';
+import { Animated } from 'react-native';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import { useLearnedCards } from '../../services/learnedCardService';
+
+// Utility to pick random element
+function randomItem<T>(arr: T[]): T | undefined {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
 
 const BrowseScreen = () => {
     const navigation = useNavigation<HomeScreenNavigationProp>();
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedFilter, setSelectedFilter] = useState<'all' | CategoryId>('all');
+    // no filter needed in category-only view
 
     const { phrases: allPhrases, loading, error, refresh } = useContent();
+    const { user } = useAuth();
+    const { learned, toggleLearned } = useLearnedCards(user?.uid);
+
+    // Compute learned progress per category (after variables declared)
+    const progressByCategory = useMemo(() => {
+        const map = new Map<CategoryId, { total: number; learned: number }>();
+        CATEGORIES.forEach((cat) => map.set(cat.id, { total: 0, learned: 0 }));
+        allPhrases?.forEach((p) => {
+            const entry = map.get(p.category);
+            if (entry) {
+                entry.total += 1;
+                if (learned?.some((l) => l.id === p.id)) {
+                    entry.learned += 1;
+                }
+            }
+        });
+        return map;
+    }, [allPhrases, learned]);
+
     const [refreshing, setRefreshing] = useState(false);
     const { showToast } = useToast();
 
@@ -34,82 +62,23 @@ const BrowseScreen = () => {
         }
     };
 
-    // Filter phrases based on search query and selected filter
-    const filteredPhrases = useMemo(() => {
-        if (!allPhrases) return [];
+    // Category screen no phrase list here
 
-        let phrases: Phrase[] = allPhrases;
-
-        // Apply search filter
-        if (searchQuery.trim()) {
-            phrases = phrases.filter(phrase =>
-                phrase.yoruba.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                phrase.english.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                phrase.code.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
-        // Apply category filter (for now, just return all as we don't have categories in dummy data)
-        if (selectedFilter !== 'all') {
-            phrases = phrases.filter((p) => p.category === selectedFilter);
-        }
-        return phrases;
-    }, [allPhrases, searchQuery, selectedFilter]);
-
-    const handlePhrasePress = (code: string) => {
-        navigation.navigate('ContentDisplay', { code });
+    const handleCategoryPress = (catId: CategoryId) => {
+        navigation.navigate('CategoryPhrases', { category: catId });
     };
 
-    const renderPhraseCard = ({ item }: { item: Phrase }) => (
-        <TouchableOpacity
-            style={[styles.phraseCard, {
-                backgroundColor: theme.COLORS.lightGray,
-                borderColor: theme.COLORS.border
-            }]}
-            onPress={() => handlePhrasePress(item.code)}
-            activeOpacity={0.7}
-        >
-            <View style={styles.cardHeader}>
-                <Text style={[styles.codeText, { color: theme.COLORS.primary }]}>{item.code}</Text>
-                <Feather name="play-circle" size={20} color={theme.COLORS.primary} />
-            </View>
-            <Text style={[styles.phraseText, { color: theme.COLORS.textPrimary }]} numberOfLines={3}>
-                {item.yoruba}
-            </Text>
-            <View style={styles.cardFooter}>
-                <Text style={[styles.tapToPlayText, { color: theme.COLORS.textSecondary }]}>Tap to play</Text>
-            </View>
-        </TouchableOpacity>
-    );
+    const handleShufflePress = () => {
+        if (!allPhrases) return;
+        const unlearned = allPhrases.filter(p => !learned?.some(l => l.id === p.id));
+        const target = randomItem(unlearned.length ? unlearned : allPhrases);
+        if (target) {
+            navigation.navigate('ContentDisplay', { code: target.code });
+        }
+    };
 
-    const FilterChip = ({
-        label,
-        value,
-        isSelected
-    }: {
-        label: string;
-        value: 'all' | CategoryId;
-        isSelected: boolean;
-    }) => (
-        <TouchableOpacity
-            style={[
-                styles.filterChip,
-                {
-                    backgroundColor: isSelected ? theme.COLORS.primary : theme.COLORS.lightGray,
-                    borderColor: isSelected ? theme.COLORS.primary : theme.COLORS.border
-                }
-            ]}
-            onPress={() => setSelectedFilter(value)}
-            activeOpacity={0.7}
-        >
-            <Text style={[
-                styles.filterChipText,
-                { color: isSelected ? theme.COLORS.background : theme.COLORS.textSecondary }
-            ]}>
-                {label}
-            </Text>
-        </TouchableOpacity>
-    );
+    // renderPhraseCard removed
+
 
     useEffect(() => {
         if (error) {
@@ -117,10 +86,20 @@ const BrowseScreen = () => {
         }
     }, [error]);
 
-    if (loading || !allPhrases) {
+    const dataLoading = loading || learned === null;
+
+    if (dataLoading) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background, justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={theme.COLORS.primary} />
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
+                <View style={styles.header}>
+                    <Text style={[styles.headerTitle, { color: theme.COLORS.textPrimary }]}>Categories</Text>
+                    <TouchableOpacity onPress={handleShufflePress}>
+                        <Feather name="refresh-ccw" size={24} color={theme.COLORS.primary} />
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.categoriesContainer}>
+                    <CategorySkeletonList count={6} />
+                </View>
             </SafeAreaView>
         );
     }
@@ -135,72 +114,34 @@ const BrowseScreen = () => {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={[styles.headerTitle, { color: theme.COLORS.textPrimary }]}>Browse Phrases</Text>
-                <Text style={[styles.headerSubtitle, { color: theme.COLORS.textSecondary }]}>
-                    {allPhrases.length} phrases available
-                </Text>
-            </View>
-
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <StyledTextInput
-                    placeholder="Search phrases, translations, or codes..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    leftIcon="search"
-                />
-            </View>
-
-            {/* Filter Chips */}
-            <View style={styles.filterContainer}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.filterScrollContent}
-                >
-                    <FilterChip label="All" value="all" isSelected={selectedFilter === 'all'} />
-                    {CATEGORIES.map((cat) => (
-                        <FilterChip
-                            key={cat.id}
-                            label={cat.label}
-                            value={cat.id}
-                            isSelected={selectedFilter === cat.id}
-                        />
-                    ))}
-                </ScrollView>
-            </View>
-
-            {/* Results */}
-            <View style={styles.resultsContainer}>
-                <Text style={[styles.resultsCount, { color: theme.COLORS.textSecondary }]}>
-                    {filteredPhrases.length} {filteredPhrases.length === 1 ? 'phrase' : 'phrases'} found
-                </Text>
-
-                {filteredPhrases.length > 0 ? (
-                    <FlatList
-                        data={filteredPhrases}
-                        renderItem={renderPhraseCard}
-                        keyExtractor={(item) => item.code}
-                        numColumns={2}
-                        columnWrapperStyle={styles.row}
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.listContent}
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                    />
-                ) : (
-                    <EmptyState
-                        icon="search"
-                        message={
-                            searchQuery.trim()
-                                ? "No phrases match your search."
-                                : "No phrases available in this category."
-                        }
-                    />
-                )}
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.header}>
+                    <Text style={[styles.headerTitle, { color: theme.COLORS.textPrimary }]}>Categories</Text>
+                    <TouchableOpacity onPress={handleShufflePress}>
+                        <Feather name="refresh-ccw" size={24} color={theme.COLORS.primary} />
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.categoriesContainer}>
+                    {CATEGORIES.map((cat) => {
+                        const progress = progressByCategory.get(cat.id);
+                        const pct = progress && progress.total ? progress.learned / progress.total : 0;
+                        return (
+                            <TouchableOpacity
+                                key={cat.id}
+                                style={[styles.categoryCard, { borderColor: theme.COLORS.border }]}
+                                onPress={() => handleCategoryPress(cat.id)}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={[styles.categoryLabel, { color: theme.COLORS.textPrimary }]}>{cat.label}</Text>
+                                <View style={[styles.progressBarBg, { backgroundColor: theme.COLORS.border }]}>
+                                    <View style={[styles.progressBarFill, { backgroundColor: theme.COLORS.primary, width: `${Math.round(pct * 100)}%` }]} />
+                                </View>
+                                <Text style={[styles.progressText, { color: theme.COLORS.textSecondary }]}>{Math.round(pct * 100)}% complete</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+            </ScrollView>
         </SafeAreaView>
     );
 };
@@ -213,6 +154,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 20,
         paddingBottom: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     headerTitle: {
         fontSize: 22,
@@ -229,12 +173,35 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         marginBottom: 16,
     },
-    filterContainer: {
-        marginBottom: 16,
-    },
-    filterScrollContent: {
+    categoriesContainer: {
         paddingHorizontal: 20,
+        marginBottom: 16,
         gap: 12,
+    },
+    categoryCard: {
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginBottom: 12,
+    },
+    categoryLabel: {
+        fontSize: 16,
+        fontFamily: 'Inter-Medium',
+        marginBottom: 8,
+    },
+    progressBarBg: {
+        height: 8,
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    progressBarFill: {
+        height: '100%',
+        borderRadius: 4,
+    },
+    progressText: {
+        fontSize: 12,
+        fontFamily: 'Inter-Regular',
+        marginTop: 4,
     },
     filterChip: {
         paddingHorizontal: 16,
@@ -273,11 +240,15 @@ const styles = StyleSheet.create({
         minHeight: 120,
         justifyContent: 'space-between',
     },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    // Removed cardHeader, replaced by playButtonContainer
+    playButtonContainer: {
         alignItems: 'center',
         marginBottom: 12,
+    },
+    learnedIcon: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
     },
     codeText: {
         fontSize: 12,
@@ -285,24 +256,14 @@ const styles = StyleSheet.create({
         lineHeight: 16,
     },
     phraseText: {
-        fontSize: 14,
+        fontSize: 16,
         fontFamily: 'Inter-Medium',
-        lineHeight: 20,
+        lineHeight: 22,
         marginBottom: 12,
         flex: 1,
-    },
-    cardFooter: {
-        marginTop: 'auto',
-        paddingTop: 8,
-        borderTopWidth: 1,
-    },
-    tapToPlayText: {
-        fontSize: 12,
-        fontFamily: 'Inter-Regular',
-        lineHeight: 16,
         textAlign: 'center',
-        fontStyle: 'italic',
     },
+    // Removed cardFooter and tapToPlayText styles
 });
 
 export default BrowseScreen;

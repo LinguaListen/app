@@ -16,6 +16,7 @@ import {
 import { ToastProvider } from './src/context/ToastContext';
 import { NetworkProvider } from './src/context/NetworkContext';
 import { OnboardingProvider } from './src/context/OnboardingContext';
+import { UsageProvider } from './src/context/UsageContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const AppContent = () => {
@@ -44,15 +45,17 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <AuthProvider>
-          <OnboardingProvider>
-            <ToastProvider>
-              <NetworkProvider>
-                <AppContent />
-              </NetworkProvider>
-            </ToastProvider>
-          </OnboardingProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <UsageProvider>
+            <AuthProvider>
+              <OnboardingProvider>
+                <NetworkProvider>
+                  <AppContent />
+                </NetworkProvider>
+              </OnboardingProvider>
+            </AuthProvider>
+          </UsageProvider>
+        </ToastProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

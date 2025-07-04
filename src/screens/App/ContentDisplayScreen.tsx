@@ -12,6 +12,7 @@ import { getTheme } from '../../constants/theme';
 import EmptyState from '../../components/common/EmptyState';
 import { addRecentActivity } from '../../services/recentActivityService';
 import { useAuth } from '../../context/AuthContext';
+import { useLearnedCards } from '../../services/learnedCardService';
 
 type ContentDisplayScreenRouteProp = RouteProp<RootStackParamList, 'ContentDisplay'>;
 
@@ -26,6 +27,7 @@ const ContentDisplayScreen = () => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [audioUri, setAudioUri] = useState<string | null>(null);
     const { user } = useAuth();
+    const { learned, toggleLearned } = useLearnedCards(user?.uid);
 
     const player = useAudioPlayer(audioUri ? { uri: audioUri } : null);
 
@@ -123,9 +125,14 @@ const ContentDisplayScreen = () => {
         );
     }
 
+    const isLearned = learned?.some(l => l.id === phraseData.id);
+
     return (
         <View style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
             <View style={[styles.phraseCard, { backgroundColor: theme.COLORS.lightGray }]}>
+                <TouchableOpacity style={styles.learnedIcon} onPress={() => toggleLearned(phraseData)}>
+                    <Feather name={isLearned ? 'check-circle' : 'circle'} size={24} color={isLearned ? theme.COLORS.success : theme.COLORS.textSecondary} />
+                </TouchableOpacity>
                 <Text style={[styles.phraseText, { color: theme.COLORS.textPrimary }]}>{phraseData.yoruba}</Text>
                 <Text style={[styles.translationText, { color: theme.COLORS.textSecondary }]}>{phraseData.english}</Text>
             </View>
@@ -182,6 +189,11 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
+    },
+    learnedIcon: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
     },
 });
 

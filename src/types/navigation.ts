@@ -21,6 +21,8 @@ export type RootStackParamList = {
     HelpSupport: undefined;
     PrivacyPolicy: undefined;
     About: undefined;
+    HowToUse: undefined;
+    CategoryPhrases: { category: import('../constants/categories').CategoryId };
 };
 
 export type AuthNavigationProp = NativeStackNavigationProp<AuthStackParamList>;

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import StyledButton from '../../components/common/StyledButton';
 import { useOnboarding } from '../../context/OnboardingContext';
@@ -9,8 +9,11 @@ import { getTheme } from '../../constants/theme';
 const OnboardingScreen = () => {
     const { completeOnboarding } = useOnboarding();
     const [loading, setLoading] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
+
+    const scrollRef = useRef<ScrollView>(null);
 
     const handlePress = async () => {
         if (loading) return;
@@ -18,66 +21,70 @@ const OnboardingScreen = () => {
         await completeOnboarding();
     };
 
-    const features = [
-        {
-            icon: 'qr-code-outline',
-            title: 'Scan Flashcards',
-            description: 'Scan QR codes or enter alphanumeric codes to access audio content instantly.'
-        },
-        {
-            icon: 'library-outline',
-            title: 'Browse Categories',
-            description: 'Explore organized content by categories like greetings, questions, and more.'
-        },
-        {
-            icon: 'cloud-offline-outline',
-            title: 'Offline Access',
-            description: 'Download content for offline listening when you\'re not connected.'
-        }
+    const slides = [
+        { icon: 'qr-code-outline', title: 'Title 1', description: 'Description 1' },
+        { icon: 'library-outline', title: 'Title 2', description: 'Description 2' },
+        { icon: 'cloud-offline-outline', title: 'Title 3', description: 'Description 3' },
+        { icon: 'volume-high-outline', title: 'Title 4', description: 'Description 4' },
+        { icon: 'happy-outline', title: 'Title 5', description: 'Description 5' },
     ];
+
+    const { width } = Dimensions.get('window');
+
+    const onMomentumEnd = (e: any) => {
+        const offsetX = e.nativeEvent.contentOffset.x;
+        setCurrentIndex(Math.round(offsetX / width));
+    };
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
+            <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                ref={scrollRef}
+                onMomentumScrollEnd={onMomentumEnd}
+            >
+                {slides.map((slide, i) => (
+                    <View key={i} style={[styles.slide, { width }]}>
             <View style={styles.header}>
                 <View style={[styles.logoContainer, { backgroundColor: theme.COLORS.primary }]}>
                     <Ionicons name="headset" size={40} color="#FFFFFF" />
                 </View>
-                <Text style={[styles.title, { color: theme.COLORS.textPrimary }]}>
-                    Welcome to LinguaListen
-                </Text>
-                <Text style={[styles.subtitle, { color: theme.COLORS.textSecondary }]}>
-                    Your interactive language learning companion
-                </Text>
+                            <Text style={[styles.title, { color: theme.COLORS.textPrimary }]}>Welcome to LinguaListen</Text>
+                            <Text style={[styles.subtitle, { color: theme.COLORS.textSecondary }]}>Your interactive language learning companion</Text>
             </View>
 
             <View style={styles.features}>
-                {features.map((feature, index) => (
-                    <View key={index} style={styles.featureItem}>
+                            <View style={styles.featureItem}>
                         <View style={[styles.iconContainer, { backgroundColor: theme.COLORS.lightGray }]}>
-                            <Ionicons
-                                name={feature.icon as any}
-                                size={24}
-                                color={theme.COLORS.primary}
-                            />
+                                    <Ionicons name={slide.icon as any} size={24} color={theme.COLORS.primary} />
                         </View>
                         <View style={styles.featureText}>
-                            <Text style={[styles.featureTitle, { color: theme.COLORS.textPrimary }]}>
-                                {feature.title}
-                            </Text>
-                            <Text style={[styles.featureDescription, { color: theme.COLORS.textSecondary }]}>
-                                {feature.description}
-                            </Text>
+                                    <Text style={[styles.featureTitle, { color: theme.COLORS.textPrimary }]}>{slide.title}</Text>
+                                    <Text style={[styles.featureDescription, { color: theme.COLORS.textSecondary }]}>{slide.description}</Text>
+                                </View>
+                            </View>
                         </View>
+
+                        {i === slides.length - 1 && (
+                            <View style={styles.footer}>
+                                <StyledButton title="Get Started" onPress={handlePress} loading={loading} />
+                            </View>
+                        )}
                     </View>
                 ))}
-            </View>
-
-            <View style={styles.footer}>
-                <StyledButton
-                    title="Get Started"
-                    onPress={handlePress}
-                    loading={loading}
-                />
+            </ScrollView>
+            {/* Dots */}
+            <View style={styles.dotsContainer}>
+                {slides.map((_, i) => (
+                    <View
+                        key={i}
+                        style={[styles.dot, {
+                            backgroundColor: i === currentIndex ? theme.COLORS.primary : theme.COLORS.border,
+                        }]}
+                    />
+                ))}
             </View>
         </SafeAreaView>
     );
@@ -85,6 +92,9 @@ const OnboardingScreen = () => {
 
 const styles = StyleSheet.create({
     container: {
+        flex: 1,
+    },
+    slide: {
         flex: 1,
     },
     header: {
@@ -152,6 +162,17 @@ const styles = StyleSheet.create({
     footer: {
         paddingHorizontal: 32,
         paddingBottom: 40,
+    },
+    dotsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 8,
+        marginBottom: 24,
+    },
+    dot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
 });
 

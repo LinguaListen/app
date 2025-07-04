@@ -6,8 +6,10 @@ import HomeScreen from '../screens/App/HomeScreen';
 import BrowseScreen from '../screens/App/BrowseScreen';
 import ProfileScreen from '../screens/App/ProfileScreen';
 import ContentDisplayScreen from '../screens/App/ContentDisplayScreen';
+import CategoryPhrasesScreen from '../screens/App/CategoryPhrasesScreen';
 import EditProfileScreen from '../screens/App/EditProfileScreen';
 import HelpSupportScreen from '../screens/App/HelpSupportScreen';
+import HowToUseScreen from '../screens/App/HowToUseScreen';
 import PrivacyPolicyScreen from '../screens/App/PrivacyPolicyScreen';
 import AboutScreen from '../screens/App/AboutScreen';
 import { useTheme } from '../context/ThemeContext';
@@ -90,6 +92,16 @@ const AppNavigator = () => {
             <Stack.Screen
                 name="About"
                 component={AboutScreen}
+                options={{ headerShown: false }}
+            />
+            <Stack.Screen
+                name="HowToUse"
+                component={HowToUseScreen}
+                options={{ headerShown: false }}
+            />
+            <Stack.Screen
+                name="CategoryPhrases"
+                component={CategoryPhrasesScreen}
                 options={{ headerShown: false }}
             />
         </Stack.Navigator>

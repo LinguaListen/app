@@ -14,6 +14,8 @@ import { db } from '../../services/firebase';
 import { updateProfile } from 'firebase/auth';
 import StyledButton from '../../components/common/StyledButton';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import { useUsage } from '../../context/UsageContext';
+import TargetPickerModal from '../../components/common/TargetPickerModal';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -28,6 +30,16 @@ const ProfileScreen = () => {
     const [newName, setNewName] = useState(profile?.name || '');
     const [isUpdating, setIsUpdating] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [showTargetModal, setShowTargetModal] = useState(false);
+
+    const { secondsToday, targetMinutes, setTargetMinutes } = useUsage();
+
+    const minutesToday = Math.floor(secondsToday / 60);
+    const reachedTarget = minutesToday >= targetMinutes;
+
+    const handleChangeTarget = () => {
+        setShowTargetModal(true);
+    };
 
     const userName = profile?.name || 'User';
     const userEmail = profile?.email || '';
@@ -232,6 +244,26 @@ const ProfileScreen = () => {
                     </View>
                 </View>
 
+                {/* Usage Settings */}
+                <View style={styles.settingsSection}>
+                    <Text style={[styles.sectionTitle, { color: theme.COLORS.textPrimary }]}>Usage</Text>
+                    <View style={[styles.settingsCard, { backgroundColor: theme.COLORS.lightGray, borderColor: theme.COLORS.border }]}>
+                        <SettingItem
+                            icon="clock"
+                            title="Daily Target"
+                            subtitle={`${minutesToday}/${targetMinutes} minutes`}
+                            onPress={handleChangeTarget}
+                        />
+                        <SettingItem
+                            icon="check-circle"
+                            title="Target Reached"
+                            subtitle={reachedTarget ? "Yes" : "No"}
+                            showArrow={false}
+                            isLast={true}
+                        />
+                    </View>
+                </View>
+
                 {/* Support Section */}
                 <View style={styles.supportSection}>
                     <Text style={[styles.sectionTitle, { color: theme.COLORS.textPrimary }]}>Support</Text>
@@ -275,6 +307,14 @@ const ProfileScreen = () => {
                 type="destructive"
                 onConfirm={confirmLogout}
                 onCancel={() => setShowLogoutModal(false)}
+            />
+            <TargetPickerModal
+                visible={showTargetModal}
+                selectedMinutes={targetMinutes}
+                onSelect={async (m) => {
+                    await setTargetMinutes(m);
+                }}
+                onClose={() => setShowTargetModal(false)}
             />
         </SafeAreaView>
     );

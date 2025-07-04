@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Button } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+// QR scan removed: CameraView, useCameraPermissions no longer needed
 import { HomeScreenNavigationProp, AppTabParamList } from '../../types/navigation';
 import { useTheme } from '../../context/ThemeContext';
 import { getTheme } from '../../constants/theme';
@@ -33,10 +33,11 @@ const HomeScreen = () => {
     const { isDark } = useTheme();
     const theme = getTheme(isDark);
     const [code, setCode] = useState('');
-    const [isScanning, setIsScanning] = useState(false);
+    // QR scan removed
+    // const [isScanning, setIsScanning] = useState(false);
     const { user, profile } = useAuth();
     const { activities: recentActivity, removeItem } = useRecentActivityFS(user?.uid);
-    const [permission, requestPermission] = useCameraPermissions();
+    // QR scan removed: CameraView, useCameraPermissions no longer needed
     const firstName = profile?.name ? profile.name.split(' ')[0] : '';
 
     // Refresh when route param provides new scan
@@ -53,39 +54,15 @@ const HomeScreen = () => {
         }
     };
 
-    const handleQrScanPress = async () => {
-        if (!permission?.granted) {
-            const { status } = await requestPermission();
-            if (status === 'granted') {
-                setIsScanning(true);
-            }
-        } else {
-            setIsScanning(true);
-        }
-    };
+    /* QR scan removed: disable handler
+    const handleQrScanPress = async () => {};
+    */
 
-    const handleBarCodeScanned = ({ data }: { data: string }) => {
-        setCode(data);
-        setIsScanning(false);
-    };
+    /* QR scan removed: barcode handler disabled
+    const handleBarCodeScanned = ({ data }: { data: string }) => {};
+    */
 
-    if (isScanning) {
-        return (
-            <View style={styles.container}>
-                <CameraView
-                    style={StyleSheet.absoluteFillObject}
-                    onBarcodeScanned={handleBarCodeScanned}
-                    barcodeScannerSettings={{
-                        barcodeTypes: ["qr"],
-                    }}
-                />
-                <View style={styles.scannerOverlay}>
-                    <Text style={styles.scannerText}>Scan a QR Code</Text>
-                    <Button title="Cancel" onPress={() => setIsScanning(false)} color={theme.COLORS.primary} />
-                </View>
-            </View>
-        );
-    }
+    // QR scan removed: scanning overlay disabled
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.COLORS.background }]}>
@@ -96,8 +73,8 @@ const HomeScreen = () => {
                         <Text style={[styles.welcomeText, { color: theme.COLORS.textSecondary }]}>Hello,</Text>
                         <Text style={[styles.userName, { color: theme.COLORS.textPrimary }]}>{firstName}</Text>
                     </View>
-                    <TouchableOpacity style={styles.notificationButton}>
-                        <Feather name="bell" size={24} color={theme.COLORS.textPrimary} />
+                    <TouchableOpacity onPress={() => navigation.navigate('HowToUse')} style={styles.helpButton}>
+                        <Feather name="help-circle" size={24} color={theme.COLORS.primary} />
                     </TouchableOpacity>
                 </View>
 
@@ -112,10 +89,6 @@ const HomeScreen = () => {
                     />
                     <View style={{ height: 16 }} />
                     <StyledButton title="Get Audio" onPress={handleCodeSubmit} />
-                    <TouchableOpacity style={styles.qrButton} onPress={handleQrScanPress}>
-                        <Feather name="camera" size={20} color={theme.COLORS.primary} />
-                        <Text style={[styles.qrButtonText, { color: theme.COLORS.primary }]}>Scan QR Code</Text>
-                    </TouchableOpacity>
                 </View>
 
                 {/* Recent Activity */}
@@ -178,9 +151,6 @@ const styles = StyleSheet.create({
         fontFamily: 'Nunito-SemiBold',
         lineHeight: 30,
     },
-    notificationButton: {
-        padding: 10,
-    },
     card: {
         borderRadius: 18,
         padding: 20,
@@ -193,18 +163,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         textAlign: 'center',
     },
-    qrButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 20,
-    },
-    qrButtonText: {
-        fontSize: 13,
-        fontFamily: 'Inter-Medium',
-        lineHeight: 18,
-        marginLeft: 8,
-    },
+    // qrButton styles removed
     recentSection: {
         paddingHorizontal: 20,
         marginTop: 10,
@@ -221,18 +180,9 @@ const styles = StyleSheet.create({
         fontFamily: 'Nunito-SemiBold',
         lineHeight: 22,
     },
-    scannerOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    scannerText: {
-        fontSize: 22,
-        fontFamily: 'Nunito-SemiBold',
-        lineHeight: 30,
-        color: 'white',
-        marginBottom: 20,
+    // scannerOverlay and scannerText styles removed
+    helpButton: {
+        padding: 8,
     },
 });
 
