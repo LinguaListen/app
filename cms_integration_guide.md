@@ -105,3 +105,90 @@ This document outlines the client's answers to key implementation questions. It 
 
 **5. How should syncing work?**
 - **Answer:** The app should support both real-time fetching on load and a manual refresh mechanism (e.g., pull-to-refresh). 
+
+---
+
+## GOOGLE SHEETS SET-UP & MAINTENANCE WORKFLOW
+
+> The following steps explain **exactly** how to prepare, publish, and maintain the Google Sheet that powers LinguaListen’s in-app content. They mirror the logic found in `src/services/contentService.ts` so please follow them **to the letter**.
+
+### 1  Create / Configure the Spreadsheet
+
+1. Create a new Google Sheet and name it **`LinguaListen CMS`** (or any name you like).
+2. In **row 1** add the **header columns – **spelled *exactly* as below and in this order:**
+
+   | A | B | C | D | E | F | G | H |
+   |---|---|---|---|---|---|---|---|
+   | `id` | `code` | `phrase_yoruba` | `phrase_english` | `audio_yoruba_url` | `audio_english_url` | `category` | `status` |
+3. Freeze row 1 (`View → Freeze → 1 row`) so the headers stay visible while editing.
+4. (Optional but recommended) **Data-validate** the `category` column with the allowed slug list below to avoid typos:
+
+   `greetings`, `questions`, `directions`, `food`, `numbers`, `shopping`, `emergencies`, `social`, `family`, `misc`
+5. (Optional) Add conditional formatting to the `status` column so `draft` rows appear greyed-out.
+
+### 2  Populate Rows
+
+| Column | Guideline |
+|--------|-----------|
+| **id** | A unique, stable string. Can be an incremental number (`1, 2, 3…`) or UUID. Must never change once printed on a card. |
+| **code** | The alphanumeric code printed or QR-encoded on the physical flashcard (e.g., `A1B2-C3D4`). Must be **unique** and **case-insensitive**. |
+| **phrase_yoruba** | Yoruba text shown in the app. No quotation marks necessary. |
+| **phrase_english** | English translation. |
+| **audio_yoruba_url / audio_english_url** | Publicly accessible HTTPS links to MP3/WAV files. (Google Drive links must be set to *Anyone with the link – Viewer* and converted to the direct download URL format.) |
+| **category** | One of the validated slugs listed above. The app maps this to a human-friendly label (see code in `src/constants/categories.ts`). |
+| **status** | Leave blank **or** set to `published` when the row is ready. Set to `draft` to hide the row from the app without deleting it. `contentService` ignores rows where `status` =`draft` (case-insensitive). |
+
+### 3  Publish the Sheet as CSV
+
+1. Open the sheet → `File → Share → Publish to web`.
+2. In the dialog:
+   - **Link** tab
+   - **Entire Document**
+   - **Comma-separated values (.csv)**
+3. Click **Publish** and copy the generated URL (it ends with `output=csv`).
+
+> **Keep this URL secret but not private.** Anyone with the link can view the raw CSV, but it contains no personal data.
+
+### 4  Expose the URL to the App
+
+1. Create (or update) an **`.env`** file in the project root:
+
+   ```bash
+   # .env
+   EXPO_PUBLIC_GOOGLE_SHEETS_URL="https://docs.google.com/spreadsheets/d/…/export?format=csv"
+   ```
+2. Commit **`.env.example`** with the *placeholder* key so teammates know what to supply.
+3. For EAS Build/CI, add the same variable in the dashboard → **Project → Build → Environment Variables** or in `eas.json` under the appropriate profile:
+
+   ```json
+   "build": {
+     "preview": {
+       "env": {
+         "EXPO_PUBLIC_GOOGLE_SHEETS_URL": "https://docs.google.com/…output=csv"
+       }
+     }
+   }
+   ```
+
+### 5  Update & Release Workflow
+
+1. **Edit** the sheet – add new rows, tweak text, replace audio links, etc.
+2. Ensure the `status` is `published` for rows you want live.
+3. Changes are live immediately (the CSV endpoint updates within seconds).
+4. The app:
+   - Caches the CSV in AsyncStorage.
+   - Automatically refreshes in the background on next launch.
+   - Users can **pull-to-refresh** on *Browse* to force an update (`contentService.refresh()`).
+
+### 6  Troubleshooting Checklist
+
+| Symptom | Possible Cause | Fix |
+|---------|----------------|-----|
+| "Content not found" after entering a code | Code typo / not unique / set to `draft` | Confirm the `code` cell matches the printed code *exactly* and `status` ≠ `draft`. |
+| New phrase doesn’t appear in app | CSV not refreshed yet / app uses cache | Wait 30 sec, then restart the app or pull-to-refresh. |
+| App shows "Missing EXPO_PUBLIC_GOOGLE_SHEETS_URL" error | Env variable not set in build profile | Add the URL to the env vars in EAS dashboard or `eas.json`. |
+| Audio fails to play | Broken or private audio URL | Paste the link in a browser – it must download immediately without auth. |
+
+---
+
+**That’s it!** Following this guide ensures non-technical editors can manage LinguaListen content safely while the mobile app stays in sync. 
