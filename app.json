@@ -35,7 +35,19 @@
       "favicon": "./assets/favicon.png",
       "output": "single"
     },
-    "plugins": ["expo-font", "expo-audio"],
+    "plugins": [
+      "expo-font",
+      "expo-audio",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21",
+            "kotlinJvmTarget": "17"
+          }
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "999ec882-461f-4ea5-8a60-c9bff1c63f26"

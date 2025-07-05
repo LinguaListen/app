@@ -1,5 +1,11 @@
 import * as FileSystem from 'expo-file-system';
-import * as Crypto from 'expo-crypto';
+
+/**
+ * NOTE: expo-crypto has been removed to slim the native build and avoid extra
+ * kotlin/gradle compilation.  We now use a lightweight, deterministic string
+ * hash implemented in pure JS for cache-file naming.  It is NOT
+ * cryptographically secure, but only needs to generate a repeatable filename.
+ */
 
 /**
  * Directory inside FileSystem.cacheDirectory where audio files are stored.
@@ -14,6 +20,16 @@ async function ensureCacheDir() {
     }
 }
 
+/** Return a simple 32-bit hex hash of a string (djb2 variant). */
+function hashStringToHex(str: string): string {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash * 33) ^ str.charCodeAt(i);
+    }
+    // Convert to an unsigned 32-bit integer and then to hex.
+    return (hash >>> 0).toString(16);
+}
+
 /**
  * Return a local URI for a remote audio file, downloading & caching if necessary.
  * @param remoteUri   The remote HTTP/HTTPS URL of the audio file.
@@ -24,11 +40,8 @@ export async function getCachedAudioUri(remoteUri: string): Promise<string> {
 
     await ensureCacheDir();
 
-    // Generate a stable filename using an md5 hash of the URL
-    const filenameHash = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        remoteUri
-    );
+    // Generate a deterministic filename from the URL.
+    const filenameHash = hashStringToHex(remoteUri);
     const extensionMatch = remoteUri.match(/\.[a-zA-Z0-9]+(?=$|\?)/);
     const extension = extensionMatch ? extensionMatch[0] : '.mp3';
     const localPath = `${AUDIO_CACHE_DIR}${filenameHash}${extension}`;
