@@ -99,3 +99,4 @@ Changes require a new OTA update via Expo EAS (no store resubmission if JS-only)
 ---
 
 **Questions?** Email dev@lingualisten.com or ping the Slack channel #project-lingualisten.
+ 
