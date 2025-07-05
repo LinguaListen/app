@@ -35,27 +35,13 @@
       "favicon": "./assets/favicon.png",
       "output": "single"
     },
-    "plugins": [
-      "expo-font",
-      "expo-audio",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "kotlinVersion": "2.0.21",
-            "kotlinJvmTarget": "17"
-          }
-        }
-      ]
-    ],
+    "plugins": ["expo-font", "expo-audio"],
     "extra": {
       "eas": {
         "projectId": "999ec882-461f-4ea5-8a60-c9bff1c63f26"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/999ec882-461f-4ea5-8a60-c9bff1c63f26",
       "fallbackToCacheTimeout": 0
